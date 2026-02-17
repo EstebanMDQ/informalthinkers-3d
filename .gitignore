@@ -1,0 +1,4 @@
+# Generated binary files (regenerate from source)
+*.stl
+*.gcode
+*.3mf
