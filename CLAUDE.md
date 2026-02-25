@@ -19,6 +19,24 @@ This repository contains 3D models designed for 3D printing. Models may be creat
 - Build volume: 220 x 220 x 250 mm
 - FDM (fused deposition modeling)
 
+## Homelab / Tailscale
+
+- Tailscale hostname: `thevault`
+- Gallery URL: `http://thevault/3d.html`
+- OctoPrint URL: `http://thevault:5000`
+- 3D files served at: `http://thevault/3d-files/`
+- Render script: `~/3d-printing/render.sh`
+- PrusaSlicer profile: `~/3d-printing/profiles/artillery-genius-pro.ini`
+
+## Render output
+
+After running a render, always include the direct URL to the relevant file:
+- PNG preview: `http://thevault/3d-files/<path>/<name>.png`
+- STL viewer: `http://thevault/3d.html` (gallery with interactive 3D viewer)
+- The path is relative to `~/3d-design/`
+
+Example: if the model is at `goggles-case/goggles-case.scad`, the preview is at `http://thevault/3d-files/goggles-case/goggles-case.png`
+
 ## Design Guidelines
 
 - Design with print orientation in mind - minimize supports where possible
