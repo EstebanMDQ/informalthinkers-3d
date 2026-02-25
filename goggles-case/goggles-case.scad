@@ -1,21 +1,24 @@
-// Swimming Goggles Case v4
-// Fishing net structure - entire case (bottom + walls) is net pattern
-// Only the opening rim is solid, for rigidity and magnet mounting
-// Hinge at rim level - bridges between rims so case folds closed naturally
+// Swimming Goggles Case v6
+// Two separate halves with friction-fit lip and magnets
+// v6: Flex PLA fixes - solid chamfer zone, thicker lip, taller rim
+// Fishing net structure covers bottom + walls
+// Solid rim at opening edge for rigidity and magnet mounting
 // Fits Artillery Genius Pro bed (220x220mm)
 
 /* [Main Dimensions] */
 inner_length = 160;      // mm - goggles length + clearance
 inner_width = 70;        // mm - goggles width + clearance
 inner_depth = 25;        // mm - depth per half (50mm total closed)
-wall = 1.2;              // mm - shell thickness / net string depth
+wall = 1.5;              // mm - shell thickness / net string depth
 corner_radius = 10;      // mm - rounded corners
 
-/* [Living Hinge] */
-hinge_cuts = 4;
-hinge_thickness = 0.5;   // mm - flex line thickness
-hinge_spacing = 2;       // mm - space between flex lines
-hinge_gap = 0.4;         // mm - cut width
+/* [Friction-Fit Lip] */
+lip_h = 2;               // mm - height lip extends above rim (shorter = less leverage)
+lip_wall = 2;            // mm - lip wall thickness (thicker for flex PLA adhesion)
+lip_tol = 0.3;           // mm - FDM clearance tolerance (compensate thicker lip)
+
+/* [Interior Fillet] */
+fillet_r = 5;            // mm - bottom-to-wall chamfer radius (gradual transition for flex PLA)
 
 /* [Magnets] */
 mag_d = 5.2;             // mm - 5mm magnet + tolerance
@@ -28,12 +31,14 @@ net_gap = 1.2;           // mm - string width
 net_ring_sp = 5;         // mm - horizontal ring spacing on walls
 
 /* [Solid Rim] */
-rim_h = 4;               // mm - solid band height at opening edge
-rim_w = 7;               // mm - solid rim width (enough for magnets)
+rim_h = 6;               // mm - solid band height at opening edge (taller = less stringing)
+rim_w = 8;               // mm - solid rim width (enough for magnets + lip)
 
-/* [FSM Icon] */
-fsm_size = 30;           // mm - icon diameter
-fsm_depth = 0.8;         // mm - relief depth
+/* [Logo Pad] */
+logo_d = 30;             // mm - flat circle diameter for custom logo
+
+/* [Layout] */
+half_gap = 5;            // mm - gap between halves on print bed
 
 /* [Rendering] */
 $fn = 12;  // Increase to 32+ for final render
@@ -42,24 +47,20 @@ $fn = 12;  // Increase to 32+ for final render
 ol = inner_length + 2*wall;
 ow = inner_width + 2*wall;
 od = inner_depth + wall;
-hw = (hinge_cuts - 1)*hinge_spacing + hinge_cuts*hinge_thickness;
 
-echo(str("Layout: ", ol, " x ", 2*ow + hw, " mm (bed: 220x220)"));
+echo(str("Layout: ", ol, " x ", 2*ow + half_gap, " mm (bed: 220x220)"));
 assert(ol <= 220, "X exceeds bed!");
-assert(2*ow + hw <= 220, "Y exceeds bed!");
+assert(2*ow + half_gap <= 220, "Y exceeds bed!");
 
 // --- Main Assembly ---
 goggles_case();
 
 module goggles_case() {
     half(false);
-    // Gap between halves; hinge bridges at the rim level
-    translate([0, ow + hw, 0]) half(true);
-    // Hinge at rim height, connecting the two rims
-    translate([0, ow, od - wall]) living_hinge();
+    translate([0, ow + half_gap, 0]) half(true);
 }
 
-// Each half: net structure + solid rim + magnet pockets
+// Each half: net structure + solid rim + friction lip + magnet pockets
 module half(is_top) {
     difference() {
         union() {
@@ -68,31 +69,75 @@ module half(is_top) {
                 shell_volume();
                 net_3d();
             }
+            // Solid chamfer zone: fill net holes in the bottom-to-wall transition
+            // Prevents delamination with flex PLA
+            render() intersection() {
+                shell_volume();
+                cube([ol, ow, fillet_r + wall]);
+            }
             // Solid rim at opening edge
             opening_rim();
-            // Solid patch for FSM icon on top half bottom face
-            if (is_top) fsm_patch();
+            // Flat solid circle on top half bottom face for custom logo
+            if (is_top) logo_pad();
+            // Friction lip on bottom half
+            if (!is_top) friction_lip();
         }
-        magnet_pockets(is_top);
-        if (is_top) fsm_icon();
+        magnet_pockets();
+        // Groove in top half for friction lip clearance
+        if (is_top) lip_clearance();
     }
 }
 
 // Shell volume: space where material can exist (outer - inner)
+// Both outer and inner shapes have hull-based chamfers at the bottom edge
 module shell_volume() {
     difference() {
-        rbox(ol, ow, od, corner_radius);
-        translate([wall, wall, wall])
-            rbox(ol - 2*wall, ow - 2*wall, od + 1, max(corner_radius - wall, 1));
+        outer_shell();
+        interior_cavity();
     }
 }
 
-// 3D net strings: diagonal walls (bottom + wall posts) + horizontal rings (wall cross-strings)
-// When intersected with shell_volume, this creates:
-//   - Bottom face: crossing diamond net pattern
-//   - Side walls: grid of rectangular openings (posts + rings)
+// Outer shell with rounded bottom edge
+module outer_shell() {
+    hull() {
+        // Floor level: inset by fillet_r
+        translate([fillet_r, fillet_r, 0])
+            rbox(ol - 2*fillet_r, ow - 2*fillet_r, 0.01,
+                 max(corner_radius - fillet_r, 0.5));
+        // At fillet_r height: full outer footprint
+        translate([0, 0, fillet_r])
+            rbox(ol, ow, 0.01, corner_radius);
+    }
+    // Straight extrusion above the chamfer
+    translate([0, 0, fillet_r])
+        rbox(ol, ow, od - fillet_r, corner_radius);
+}
+
+// Interior cavity with hull-based 45-degree chamfer at bottom-to-wall transition
+module interior_cavity() {
+    ir = max(corner_radius - wall, 1);
+    ix = ol - 2*wall;
+    iy = ow - 2*wall;
+
+    translate([wall, wall, wall]) {
+        // Chamfer zone: hull from smaller footprint at floor to full footprint at fillet_r
+        hull() {
+            // Floor level: inset by fillet_r on each side
+            rbox(ix - 2*fillet_r, iy - 2*fillet_r, 0.01,
+                 max(ir - fillet_r, 0.5));
+            // At fillet_r height: full inner footprint, thin slice
+            translate([0, 0, fillet_r])
+                rbox(ix, iy, 0.01, ir);
+        }
+        // Straight extrusion above the chamfer to top (with overshoot for clean cut)
+        translate([0, 0, fillet_r])
+            rbox(ix, iy, od - wall - fillet_r + 1, ir);
+    }
+}
+
+// 3D net strings: diagonal walls (bottom + wall posts) + horizontal rings
 module net_3d() {
-    sp = net_hole / sqrt(2) + net_gap;  // perpendicular strip spacing
+    sp = net_hole / sqrt(2) + net_gap;
     diag = sqrt(ol*ol + ow*ow);
     n = ceil(diag / sp);
 
@@ -116,7 +161,7 @@ module net_3d() {
             cube([ol, ow, net_gap]);
 }
 
-// Solid frame at the opening edge - provides rigidity and holds magnets
+// Solid frame at the opening edge
 module opening_rim() {
     difference() {
         translate([0, 0, od - rim_h])
@@ -127,6 +172,47 @@ module opening_rim() {
     }
 }
 
+// Friction lip: thin wall rising above the rim on the bottom half
+// Outer face aligns with the inner edge of the solid rim
+module friction_lip() {
+    ir = max(corner_radius - rim_w, 1);
+    difference() {
+        // Outer boundary: matches inner edge of rim
+        translate([rim_w, rim_w, od])
+            rbox(ol - 2*rim_w, ow - 2*rim_w, lip_h, ir);
+        // Inner boundary: inset by lip_wall
+        translate([rim_w + lip_wall, rim_w + lip_wall, od - 0.1])
+            rbox(ol - 2*rim_w - 2*lip_wall, ow - 2*rim_w - 2*lip_wall,
+                 lip_h + 0.2, max(ir - lip_wall, 0.5));
+    }
+}
+
+// Groove in top half's inner rim face for lip clearance
+module lip_clearance() {
+    ir = max(corner_radius - rim_w, 1);
+    groove_depth = lip_wall + lip_tol;
+    groove_h = lip_h + lip_tol;
+    difference() {
+        // Outer cut: slightly larger than lip
+        translate([rim_w - lip_tol, rim_w - lip_tol, od - groove_h])
+            rbox(ol - 2*rim_w + 2*lip_tol, ow - 2*rim_w + 2*lip_tol,
+                 groove_h + 0.1, max(ir, 0.5));
+        // Inner: leave material inside the groove
+        translate([rim_w + groove_depth, rim_w + groove_depth, od - groove_h - 0.1])
+            rbox(ol - 2*rim_w - 2*groove_depth, ow - 2*rim_w - 2*groove_depth,
+                 groove_h + 0.3, max(ir - groove_depth, 0.5));
+    }
+}
+
+// Magnet pockets on both long edges of each half
+// When top is flipped, y-positions swap so all 4 pairs align
+module magnet_pockets() {
+    for (py = [rim_w/2, ow - rim_w/2])
+        for (px = [mag_inset, ol - mag_inset])
+            translate([px, py, od - mag_h])
+                cylinder(d = mag_d, h = mag_h + 0.1);
+}
+
 // Rounded box primitive
 module rbox(l, w, h, r) {
     r2 = min(r, min(l, w) / 2 - 0.01);
@@ -135,9 +221,9 @@ module rbox(l, w, h, r) {
             translate([x, y, 0]) cylinder(h = h, r = r2);
 }
 
-// Solid disc on bottom face for FSM icon (fills net holes in that area)
-module fsm_patch() {
-    fsm_r = fsm_size/2 + net_hole;
+// Flat solid circle on top half bottom face for custom logo
+// Fills net holes in this area, creating a smooth surface to engrave/attach a logo
+module logo_pad() {
     intersection() {
         // Bottom face of shell only
         difference() {
@@ -147,83 +233,6 @@ module fsm_patch() {
                      max(corner_radius - wall, 1));
         }
         translate([ol/2, ow/2, 0])
-            cylinder(r = fsm_r, h = wall + 0.01);
+            cylinder(d = logo_d, h = wall + 0.01);
     }
-}
-
-// Magnet pockets in the solid rim at the closure edge
-module magnet_pockets(is_top) {
-    // Closure edge: bottom half at y=0, top half at y=ow
-    // Center magnet in the rim width
-    py = is_top ? ow - rim_w/2 : rim_w/2;
-    for (px = [mag_inset, ol - mag_inset])
-        translate([px, py, od - mag_h])
-            cylinder(d = mag_d, h = mag_h + 0.1);
-}
-
-// Accordion-style living hinge
-module living_hinge() {
-    difference() {
-        cube([ol, hw, wall]);
-        for (i = [0 : hinge_cuts - 1]) {
-            y = i * hinge_spacing + (i + 0.5) * hinge_thickness;
-            if (i % 2 == 0)
-                translate([-1, y - hinge_gap/2, -0.1])
-                    cube([ol - corner_radius + 1, hinge_gap, wall + 0.2]);
-            else
-                translate([corner_radius, y - hinge_gap/2, -0.1])
-                    cube([ol - corner_radius + 1, hinge_gap, wall + 0.2]);
-        }
-    }
-}
-
-// --- FSM Icon ---
-module fsm_icon() {
-    translate([ol/2, ow/2, wall - fsm_depth]) {
-        fsm_body();
-        fsm_eyes();
-        fsm_appendages();
-    }
-}
-
-module fsm_body() {
-    r = fsm_size * 0.35;
-    scale([1, 1, 0.3]) sphere(r = r, $fn = 16);
-    for (a = [0:60:359])
-        rotate([0, 0, a])
-        translate([r * 0.5, 0, 0])
-        scale([1, 0.15, 0.2])
-            sphere(r = r * 0.6, $fn = 12);
-}
-
-module fsm_eyes() {
-    er = fsm_size * 0.08;
-    sh = fsm_size * 0.25;
-    for (s = [-1, 1])
-        translate([fsm_size * 0.15, s * fsm_size * 0.12, 0]) {
-            cylinder(r = er * 0.5, h = sh, $fn = 12);
-            translate([0, 0, sh]) sphere(r = er, $fn = 16);
-        }
-}
-
-module fsm_appendages() {
-    al = fsm_size * 0.3;
-    for (i = [0:2]) {
-        translate([-fsm_size*0.25, fsm_size*0.1, 0])
-        rotate([0, 0, -30 - i*25]) rotate([80, 0, 0])
-            wavy_tendril(al);
-        translate([-fsm_size*0.25, -fsm_size*0.1, 0])
-        rotate([0, 0, 30 + i*25]) rotate([80, 0, 0])
-            wavy_tendril(al);
-    }
-}
-
-module wavy_tendril(length) {
-    segs = 4;
-    sl = length / segs;
-    t = fsm_size * 0.03;
-    for (i = [0:segs-1])
-        translate([0, 0, i * sl])
-        rotate([sin(i*60)*20, cos(i*45)*15, 0])
-            cylinder(r1 = t*(1-i*0.1), r2 = t*(0.9-i*0.1), h = sl, $fn = 6);
 }
