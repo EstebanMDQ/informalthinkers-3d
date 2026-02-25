@@ -25,3 +25,27 @@ This repository contains 3D models designed for 3D printing. Models may be creat
 - Use parametric dimensions for customizable parts
 - Include tolerance variables for press-fit and clearance fits (typically 0.2mm for FDM)
 - Keep wall thickness above 1.2mm for structural parts
+
+## Rendering
+
+When rendering OpenSCAD models, save outputs in the same folder as the source `.scad` file.
+
+- **STL**: `openscad -o <name>.stl <name>.scad` - for slicing (gitignored)
+- **PNG preview**: always render a PNG so the model can be visually checked later (tracked in git)
+
+PNG render command:
+```
+openscad -o <name>.png \
+  --imgsize=1920,1080 \
+  --autocenter --viewall \
+  --camera=0,0,0,55,0,25,0 \
+  --projection=p \
+  --colorscheme=DeepOcean \
+  <name>.scad
+```
+
+Key flags:
+- `--autocenter --viewall`: always frame the entire model, never zoom into details
+- `--camera=0,0,0,55,0,25,0`: 3/4 top-down view (rot_x=55, rot_z=25) - shows depth and volume
+- `--projection=p`: perspective projection for natural depth
+- `--colorscheme=DeepOcean`: gives good contrast and sense of volume

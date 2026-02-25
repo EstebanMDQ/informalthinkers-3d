@@ -4,3 +4,6 @@
 *.3mf
 .DS_Store
 
+# Keep PNG renders in the repo for reference
+!*.png
+
