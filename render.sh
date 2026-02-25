@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROFILE="$SCRIPT_DIR/profiles/artillery-genius-pro.ini"
-OCTOPRINT_UPLOADS="$HOME/homelab/octoprint/config/uploads"
+OCTOPRINT_UPLOADS="$HOME/homelab/octoprint/config/octoprint/uploads"
 TAILSCALE_HOST="thevault"
 NOTIFY_URL="http://127.0.0.1:9876/hook"
 
