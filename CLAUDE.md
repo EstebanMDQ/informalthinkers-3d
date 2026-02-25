@@ -25,8 +25,8 @@ This repository contains 3D models designed for 3D printing. Models may be creat
 - Gallery URL: `http://thevault/3d.html`
 - OctoPrint URL: `http://thevault:5000`
 - 3D files served at: `http://thevault/3d-files/`
-- Render script: `~/3d-printing/render.sh`
-- PrusaSlicer profile: `~/3d-printing/profiles/artillery-genius-pro.ini`
+- Render script: `./render.sh` (in repo root)
+- PrusaSlicer profile: `./profiles/artillery-genius-pro.ini`
 
 ## Render output
 
