@@ -53,8 +53,14 @@ Two-piece friction-fit case for compact swimming goggles with magnetic closure, 
 | half_gap | 5mm | Gap between halves on bed |
 
 ## Print Settings
-- Material: Flex PLA or TPU
+- Material: Printalot Flex PLA (PLA+PBAT blend)
+- Profile: `profiles/filaments/printalot-flex-pla.ini`
 - Layer height: 0.2mm
+- Temperature: 205C (first layer 210C)
+- Bed: 55C (first layer 60C)
+- Perimeter speed: 40mm/s, infill: 50mm/s
+- Retraction: 2mm @ 35mm/s, Z-lift 0.4mm, wipe on
+- Seam: random
 - Infill: 100% for walls, or use vase mode where possible
 - Orientation: Flat as designed
 - Supports: None needed
